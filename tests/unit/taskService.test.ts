@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { TaskRepository } from '../../src/repositories/taskRepository';
+import type { FormConfigRepository } from '../../src/repositories/formConfigRepository';
 import { TaskService } from '../../src/services/taskService';
 import type { Task } from '../../src/types';
 
@@ -67,5 +68,93 @@ describe('TaskService', () => {
     const result = await service.updateStatus('abc-123', 'done');
     expect(result?.status).toBe('done');
     expect(mockRepo.update).toHaveBeenCalledWith('abc-123', { status: 'done' });
+  });
+
+  describe('with FormConfigRepository validation', () => {
+    const mockFormConfigRepo = {
+      getSettings: vi.fn(),
+      saveSettings: vi.fn(),
+      resetSettings: vi.fn(),
+    };
+
+    const dummySettings = {
+      id: 'task-form' as const,
+      title: 'Form',
+      version: 1,
+      updatedAt: '2026-01-01T00:00:00Z',
+      fields: [
+        { id: 'title', label: 'Title', type: 'text' as const, builtIn: true, row: 0, column: 0 as const },
+        { id: 'clientName', label: 'Client Name', type: 'text' as const, builtIn: false, required: true, row: 1, column: 0 as const },
+        { id: 'contactEmail', label: 'Contact Email', type: 'email' as const, builtIn: false, required: false, row: 1, column: 1 as const },
+      ],
+    };
+
+    let serviceWithConfig: TaskService;
+
+    beforeEach(() => {
+      mockFormConfigRepo.getSettings.mockResolvedValue(dummySettings);
+      serviceWithConfig = new TaskService(
+        mockRepo,
+        mockFormConfigRepo as unknown as FormConfigRepository
+      );
+    });
+
+    it('createTask rejects unknown custom field ids', async () => {
+      const input = {
+        title: 'Task with unknown field',
+        status: 'todo' as const,
+        priority: 'medium' as const,
+        customFields: { unknownField: 'val' },
+      };
+
+      await expect(serviceWithConfig.createTask(input)).rejects.toThrow('Custom field validation failed');
+      expect(mockRepo.create).not.toHaveBeenCalled();
+    });
+
+    it('createTask rejects invalid email in custom fields', async () => {
+      const input = {
+        title: 'Task with invalid email',
+        status: 'todo' as const,
+        priority: 'medium' as const,
+        customFields: { clientName: 'ACME', contactEmail: 'not-an-email' },
+      };
+
+      await expect(serviceWithConfig.createTask(input)).rejects.toThrow('Custom field validation failed');
+      expect(mockRepo.create).not.toHaveBeenCalled();
+    });
+
+    it('createTask succeeds when custom fields are valid according to config', async () => {
+      vi.mocked(mockRepo.create).mockResolvedValue(mockTask);
+      const input = {
+        title: 'Valid Task',
+        status: 'todo' as const,
+        priority: 'medium' as const,
+        customFields: { clientName: 'ACME Corp', contactEmail: 'contact@acme.com' },
+      };
+
+      const result = await serviceWithConfig.createTask(input);
+      expect(result).toEqual(mockTask);
+      expect(mockRepo.create).toHaveBeenCalledWith(input);
+    });
+
+    it('updateTask rejects unknown custom field ids', async () => {
+      const updateInput = {
+        customFields: { bogusKey: 'hello' },
+      };
+
+      await expect(serviceWithConfig.updateTask('abc-123', updateInput)).rejects.toThrow('Custom field validation failed');
+      expect(mockRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('updateTask delegates to repo.update when custom fields are valid', async () => {
+      vi.mocked(mockRepo.update).mockResolvedValue(mockTask);
+      const updateInput = {
+        customFields: { clientName: 'Updated Corp' },
+      };
+
+      const result = await serviceWithConfig.updateTask('abc-123', updateInput);
+      expect(result).toEqual(mockTask);
+      expect(mockRepo.update).toHaveBeenCalledWith('abc-123', updateInput);
+    });
   });
 });
