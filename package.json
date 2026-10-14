@@ -1,23 +1,39 @@
 {
   "name": "kitameraki-be-test",
   "version": "1.0.0",
-  "description": "",
+  "description": "Azure Functions backend for Task Management App",
+  "main": "dist/src/functions/*.js",
   "scripts": {
-    "build": "tsc",
-    "watch": "tsc -w",
-    "clean": "rimraf dist",
-    "prestart": "npm run clean && npm run build",
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -p tsconfig.json --watch",
     "start": "func start",
-    "test": "echo \"No tests yet...\""
+    "dev": "npm run build && func start",
+    "lint": "eslint 'src/**/*.ts' 'tests/**/*.ts'",
+    "lint:fix": "eslint 'src/**/*.ts' 'tests/**/*.ts' --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@azure/cosmos": "^4.0.0",
-    "@azure/functions": "^4.0.0"
+    "@azure/cosmos": "^4.1.1",
+    "@azure/functions": "^4.5.0",
+    "uuid": "^11.0.3",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/node": "^20.x",
-    "rimraf": "^5.0.0",
-    "typescript": "^4.0.0"
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^22.9.0",
+    "@types/uuid": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.13.0",
+    "@typescript-eslint/parser": "^8.13.0",
+    "@vitest/coverage-v8": "^2.1.4",
+    "eslint": "^9.14.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^2.1.4"
   },
-  "main": "dist/src/{index.js,functions/*.js}"
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }
