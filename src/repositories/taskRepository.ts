@@ -1,3 +1,14 @@
+function sanitizeCustomFields(
+  fields?: Record<string, string | null | undefined>
+): Record<string, string | null> {
+  if (!fields) return {};
+  const result: Record<string, string | null> = {};
+  for (const [key, val] of Object.entries(fields)) {
+    result[key] = val === undefined ? null : val;
+  }
+  return result;
+}
+
 import { Container, SqlQuerySpec, SqlParameter } from '@azure/cosmos';
 import { v4 as uuidv4 } from 'uuid';
 import type { Task, TaskDocument, PaginatedResult } from '../types';
@@ -91,6 +102,7 @@ export class TaskRepository {
       status: input.status,
       priority: input.priority ?? 'medium',
       dueDate: input.dueDate,
+      customFields: sanitizeCustomFields(input.customFields),
       createdAt: now,
       updatedAt: now,
       _partitionKey: input.status,
@@ -115,6 +127,9 @@ export class TaskRepository {
       status: newStatus,
       priority: input.priority !== undefined ? input.priority : existingDoc.priority,
       dueDate: input.dueDate !== undefined ? input.dueDate : existingDoc.dueDate,
+      customFields: input.customFields !== undefined
+        ? sanitizeCustomFields({ ...(existingDoc.customFields ?? {}), ...input.customFields })
+        : existingDoc.customFields,
       createdAt: existingDoc.createdAt,
       updatedAt: now,
       _partitionKey: newStatus,
@@ -153,6 +168,7 @@ function toTask(doc: TaskDocument): Task {
     status: doc.status,
     priority: doc.priority,
     dueDate: doc.dueDate,
+    customFields: doc.customFields ?? {},
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   };
