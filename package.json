@@ -8,11 +8,13 @@
     "watch": "tsc -p tsconfig.json --watch",
     "start": "func start",
     "dev": "npm run build && func start",
-    "lint": "eslint 'src/**/*.ts' 'tests/**/*.ts'",
-    "lint:fix": "eslint 'src/**/*.ts' 'tests/**/*.ts' --fix",
+    "lint": "eslint 'src/**/*.ts' 'tests/**/*.ts' 'scripts/**/*.ts'",
+    "lint:fix": "eslint 'src/**/*.ts' 'tests/**/*.ts' 'scripts/**/*.ts' --fix",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "migrate": "npm run build && node dist/scripts/migrate-data-separation.js",
+    "migrate:execute": "npm run build && node dist/scripts/migrate-data-separation.js --execute"
   },
   "dependencies": {
     "@azure/cosmos": "^4.1.1",

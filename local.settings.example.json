@@ -6,6 +6,8 @@
     "COSMOS_DB_ENDPOINT": "<YOUR_COSMOS_ENDPOINT>",
     "COSMOS_DB_KEY": "<YOUR_COSMOS_KEY>",
     "COSMOS_DB_DATABASE": "TaskManagementDB",
+    "COSMOS_TASKS_CONTAINER": "tasks",
+    "COSMOS_FORM_CONFIG_CONTAINER": "formConfig",
     "COSMOS_DB_CONTAINER": "tasks",
     "ALLOWED_ORIGINS": "http://localhost:5173"
   }

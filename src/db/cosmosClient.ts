@@ -10,7 +10,8 @@ import { config } from '../utils/config';
  */
 
 let _client: CosmosClient | null = null;
-let _container: Container | null = null;
+let _tasksContainer: Container | null = null;
+let _formConfigContainer: Container | null = null;
 
 function getClient(): CosmosClient {
   if (!_client) {
@@ -22,22 +23,45 @@ function getClient(): CosmosClient {
   return _client;
 }
 
-export async function getContainer(): Promise<Container> {
-  if (_container) return _container;
+export function getCosmosClient(): CosmosClient {
+  return getClient();
+}
+
+export async function getTasksContainer(): Promise<Container> {
+  if (_tasksContainer) return _tasksContainer;
 
   const client = getClient();
-
-  // Ensure DB and container exist (idempotent; safe to call on every cold start)
   const { database } = await client.databases.createIfNotExists({
     id: config.cosmos.database,
   });
 
   const { container } = await database.containers.createIfNotExists({
-    id: config.cosmos.container,
+    id: config.cosmos.tasksContainer,
     partitionKey: { paths: ['/_partitionKey'] },
-    // Throughput only set on initial creation — emulator ignores it
   });
-  _container = container;
+  _tasksContainer = container;
 
-  return _container;
+  return _tasksContainer;
+}
+
+export async function getFormConfigContainer(): Promise<Container> {
+  if (_formConfigContainer) return _formConfigContainer;
+
+  const client = getClient();
+  const { database } = await client.databases.createIfNotExists({
+    id: config.cosmos.database,
+  });
+
+  const { container } = await database.containers.createIfNotExists({
+    id: config.cosmos.formConfigContainer,
+    partitionKey: { paths: ['/configType'] },
+  });
+  _formConfigContainer = container;
+
+  return _formConfigContainer;
+}
+
+/** Legacy alias for backwards-compatibility */
+export async function getContainer(): Promise<Container> {
+  return getTasksContainer();
 }

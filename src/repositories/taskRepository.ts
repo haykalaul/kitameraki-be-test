@@ -26,8 +26,11 @@ export class TaskRepository {
     const offset = (page - 1) * pageSize;
 
     // Build WHERE clauses with parameters — no string interpolation of user data
-    const conditions: string[] = [];
-    const parameters: SqlParameter[] = [];
+    // Defense-in-depth: only match documents that are tasks (excludes stray config docs)
+    const conditions: string[] = [
+      '(c.docType = @taskDocType OR (NOT IS_DEFINED(c.docType) AND IS_DEFINED(c.status) AND NOT IS_DEFINED(c.fields)))',
+    ];
+    const parameters: SqlParameter[] = [{ name: '@taskDocType', value: 'task' }];
 
     if (status) {
       conditions.push('c.status = @status');
@@ -44,7 +47,7 @@ export class TaskRepository {
       parameters.push({ name: '@search', value: search });
     }
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const whereClause = `WHERE ${conditions.join(' AND ')}`;
     const orderClause = `ORDER BY c.${sortBy} ${sortOrder.toUpperCase()}`;
 
     // Count query
@@ -86,7 +89,8 @@ export class TaskRepository {
 
   private async findDocumentById(id: string): Promise<TaskDocument | null> {
     const spec: SqlQuerySpec = {
-      query: 'SELECT * FROM c WHERE c.id = @id',
+      query:
+        'SELECT * FROM c WHERE c.id = @id AND (c.docType = "task" OR (NOT IS_DEFINED(c.docType) AND IS_DEFINED(c.status) AND NOT IS_DEFINED(c.fields)))',
       parameters: [{ name: '@id', value: id }],
     };
     const { resources } = await this.container.items.query<TaskDocument>(spec).fetchAll();
@@ -97,6 +101,7 @@ export class TaskRepository {
     const now = new Date().toISOString();
     const doc: TaskDocument = {
       id: uuidv4(),
+      docType: 'task',
       title: input.title,
       description: input.description,
       status: input.status,
@@ -122,6 +127,7 @@ export class TaskRepository {
 
     const updatedDoc: TaskDocument = {
       id: existingDoc.id,
+      docType: 'task',
       title: input.title !== undefined ? input.title : existingDoc.title,
       description: input.description !== undefined ? input.description : existingDoc.description,
       status: newStatus,
@@ -169,6 +175,7 @@ function toTask(doc: TaskDocument): Task {
     priority: doc.priority,
     dueDate: doc.dueDate,
     customFields: doc.customFields ?? {},
+    docType: doc.docType ?? 'task',
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   };

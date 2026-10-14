@@ -25,7 +25,8 @@ export interface FormSettings {
 }
 
 export interface FormSettingsDocument extends FormSettings {
-  _partitionKey: string;
+  configType: string; // partition key for formConfig container (/configType)
+  _partitionKey?: string; // legacy partition key for backwards/migration compatibility
 }
 
 export const DEFAULT_FORM_FIELDS: FormField[] = [
@@ -53,6 +54,7 @@ export interface Task {
   priority: TaskPriority;
   dueDate?: string; // ISO date string
   customFields?: Record<string, string | null>;
+  docType?: 'task';
   createdAt: string; // ISO timestamp
   updatedAt: string; // ISO timestamp
 }
@@ -60,6 +62,7 @@ export interface Task {
 /** Shape stored in Cosmos DB (partition key = status) */
 export interface TaskDocument extends Task {
   _partitionKey: string; // mirrors status; allows efficient queries per status
+  docType?: 'task';
 }
 
 export interface PaginatedResult<T> {

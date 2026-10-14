@@ -1,7 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { ZodError } from 'zod';
-import { getContainer } from '../db/cosmosClient';
-import { FormSettingsRepository } from '../repositories/formSettingsRepository';
+import { getFormConfigContainer } from '../db/cosmosClient';
+import { FormConfigRepository } from '../repositories/formConfigRepository';
 import { FormSettingsService } from '../services/formSettingsService';
 import { updateFormSettingsSchema } from '../schemas';
 import {
@@ -12,8 +12,8 @@ import {
 } from '../middleware/response';
 
 async function getService(): Promise<FormSettingsService> {
-  const container = await getContainer();
-  const repo = new FormSettingsRepository(container);
+  const container = await getFormConfigContainer();
+  const repo = new FormConfigRepository(container);
   return new FormSettingsService(repo);
 }
 

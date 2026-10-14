@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { Task, PaginatedResult, FormSettings, FormField } from '../types';
 import type { TaskRepository } from '../repositories/taskRepository';
-import type { FormSettingsRepository } from '../repositories/formSettingsRepository';
+import type { FormConfigRepository } from '../repositories/formConfigRepository';
 import type { CreateTaskInput, UpdateTaskInput, ListQueryInput } from '../schemas';
 
 export class CustomFieldValidationError extends Error {
@@ -95,7 +95,7 @@ export function validateTaskCustomFields(
 export class TaskService {
   constructor(
     private readonly repo: TaskRepository,
-    private readonly formSettingsRepo?: FormSettingsRepository
+    private readonly formConfigRepo?: FormConfigRepository
   ) {}
 
   async listTasks(query: ListQueryInput): Promise<PaginatedResult<Task>> {
@@ -107,16 +107,16 @@ export class TaskService {
   }
 
   async createTask(input: CreateTaskInput): Promise<Task> {
-    if (this.formSettingsRepo) {
-      const settings = await this.formSettingsRepo.getSettings();
+    if (this.formConfigRepo) {
+      const settings = await this.formConfigRepo.getSettings();
       validateTaskCustomFields(input.customFields, settings, false);
     }
     return this.repo.create(input);
   }
 
   async updateTask(id: string, input: UpdateTaskInput): Promise<Task | null> {
-    if (this.formSettingsRepo && input.customFields !== undefined) {
-      const settings = await this.formSettingsRepo.getSettings();
+    if (this.formConfigRepo && input.customFields !== undefined) {
+      const settings = await this.formConfigRepo.getSettings();
       validateTaskCustomFields(input.customFields, settings, true);
     }
     return this.repo.update(id, input);

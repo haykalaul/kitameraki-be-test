@@ -1,8 +1,8 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { ZodError } from 'zod';
-import { getContainer } from '../db/cosmosClient';
+import { getTasksContainer, getFormConfigContainer } from '../db/cosmosClient';
 import { TaskRepository } from '../repositories/taskRepository';
-import { FormSettingsRepository } from '../repositories/formSettingsRepository';
+import { FormConfigRepository } from '../repositories/formConfigRepository';
 import { TaskService, CustomFieldValidationError } from '../services/taskService';
 import {
   createTaskSchema,
@@ -23,13 +23,14 @@ import {
 } from '../middleware/response';
 
 // ---------------------------------------------------------------------------
-// Shared factory — builds service from a fresh container per cold start
+// Shared factory — builds service from separate containers per cold start
 // ---------------------------------------------------------------------------
 async function getService(): Promise<TaskService> {
-  const container = await getContainer();
-  const repo = new TaskRepository(container);
-  const formSettingsRepo = new FormSettingsRepository(container);
-  return new TaskService(repo, formSettingsRepo);
+  const tasksContainer = await getTasksContainer();
+  const formConfigContainer = await getFormConfigContainer();
+  const repo = new TaskRepository(tasksContainer);
+  const formConfigRepo = new FormConfigRepository(formConfigContainer);
+  return new TaskService(repo, formConfigRepo);
 }
 
 // ---------------------------------------------------------------------------
@@ -40,8 +41,10 @@ async function getService(): Promise<TaskService> {
 async function healthCheck(_req: HttpRequest, ctx: InvocationContext): Promise<HttpResponseInit> {
   ctx.log("healthCheck called");
   try {
-    const container = await getContainer();
-    const { resource } = await container.read();
+    const tasksContainer = await getTasksContainer();
+    const formConfigContainer = await getFormConfigContainer();
+    const { resource: tasksResource } = await tasksContainer.read();
+    const { resource: formConfigResource } = await formConfigContainer.read();
     return ok({
       status: "healthy",
       timestamp: new Date().toISOString(),
@@ -49,7 +52,10 @@ async function healthCheck(_req: HttpRequest, ctx: InvocationContext): Promise<H
       service: "task-management-api",
       database: {
         status: "connected",
-        container: resource?.id,
+        containers: {
+          tasks: tasksResource?.id,
+          formConfig: formConfigResource?.id,
+        },
       },
     });
   } catch (err) {
