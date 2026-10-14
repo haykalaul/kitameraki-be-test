@@ -9,16 +9,16 @@ The API is consumed by the `../frontend` React SPA.
 
 ```
 src/
-├── db/              cosmosClient.ts  — singleton Cosmos client, auto-creates DB & container
-├── functions/       tasks.ts         — Azure Functions HTTP handlers (route → validate → service)
-├── middleware/      response.ts      — Consistent HTTP response helpers
-├── repositories/    taskRepository.ts — All Cosmos queries (fully parameterised)
-├── schemas/         index.ts         — Zod schemas for input validation
-├── services/        taskService.ts   — Business logic
-├── types/           index.ts         — Shared TypeScript interfaces
-└── utils/           config.ts        — Centralised, fail-fast env config
+├── db/              cosmosClient.ts           — singleton Cosmos client, auto-creates DB & container
+├── functions/       tasks.ts, formSettings.ts — Azure Functions HTTP handlers (route → validate → service)
+├── middleware/      response.ts               — Consistent HTTP response helpers
+├── repositories/    taskRepository.ts, formSettingsRepository.ts — All Cosmos queries (fully parameterised)
+├── schemas/         index.ts                  — Zod schemas for input & layout validation
+├── services/        taskService.ts, formSettingsService.ts       — Business logic & custom field validation
+├── types/           index.ts                  — Shared TypeScript interfaces
+└── utils/           config.ts                 — Centralised, fail-fast env config
 tests/
-└── unit/            taskService.test.ts
+└── unit/            taskService.test.ts, formSettings.test.ts, response.test.ts
 ```
 
 **Partition key:** `/_partitionKey` (mirrors `status`). This allows efficient per-status queries
@@ -108,10 +108,13 @@ Base URL: `http://localhost:7071/api`
 |--------|------|-------------|
 | GET | `/tasks` | Paginated list with filters |
 | GET | `/tasks/{id}` | Get single task |
-| POST | `/tasks` | Create task |
-| PUT | `/tasks/{id}` | Update task |
+| POST | `/tasks` | Create task (validates customFields against active schema) |
+| PUT | `/tasks/{id}` | Update task (validates customFields against active schema) |
 | PATCH | `/tasks/{id}/status` | Change status only |
 | DELETE | `/tasks/{id}` | Delete task |
+| GET | `/form-settings` | Get current form settings (returns defaults if none saved) |
+| PUT | `/form-settings` | Update form settings (validates max 2 cols/row, unique IDs, types) |
+| POST | `/form-settings/reset` | Reset form configuration to Part 1 defaults |
 
 ### Query Parameters (`GET /tasks`)
 

@@ -2,7 +2,8 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/fu
 import { ZodError } from 'zod';
 import { getContainer } from '../db/cosmosClient';
 import { TaskRepository } from '../repositories/taskRepository';
-import { TaskService } from '../services/taskService';
+import { FormSettingsRepository } from '../repositories/formSettingsRepository';
+import { TaskService, CustomFieldValidationError } from '../services/taskService';
 import {
   createTaskSchema,
   updateTaskSchema,
@@ -12,6 +13,7 @@ import {
 import {
   ok,
   created,
+  badRequest,
   noContent,
   notFound,
   validationError,
@@ -26,7 +28,8 @@ import {
 async function getService(): Promise<TaskService> {
   const container = await getContainer();
   const repo = new TaskRepository(container);
-  return new TaskService(repo);
+  const formSettingsRepo = new FormSettingsRepository(container);
+  return new TaskService(repo, formSettingsRepo);
 }
 
 // ---------------------------------------------------------------------------
@@ -102,6 +105,9 @@ async function createTask(req: HttpRequest, ctx: InvocationContext): Promise<Htt
     const task = await service.createTask(parseResult.data);
     return created(task);
   } catch (err) {
+    if (err instanceof CustomFieldValidationError) {
+      return badRequest('Custom field validation failed', err.details);
+    }
     return internalError(err);
   }
 }
@@ -121,6 +127,9 @@ async function updateTask(req: HttpRequest, ctx: InvocationContext): Promise<Htt
     const task = await service.updateTask(id, parseResult.data);
     return task ? ok(task) : notFound(`Task ${id} not found`);
   } catch (err) {
+    if (err instanceof CustomFieldValidationError) {
+      return badRequest('Custom field validation failed', err.details);
+    }
     return internalError(err);
   }
 }
