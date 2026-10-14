@@ -10,26 +10,42 @@ export const HTTP = {
   BAD_REQUEST: 400,
   NOT_FOUND: 404,
   INTERNAL_ERROR: 500,
+  SERVICE_UNAVAILABLE: 503,
 } as const;
 
-function jsonBody(statusCode: number, body: unknown): HttpResponse {
+/** Common security headers */
+const SECURITY_HEADERS = {
+  'Content-Type': 'application/json',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'X-XSS-Protection': '1; mode=block',
+};
+
+function jsonBody(statusCode: number, body: unknown, additionalHeaders: Record<string, string> = {}): HttpResponse {
   return new HttpResponse({
     status: statusCode,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      ...SECURITY_HEADERS,
+      ...additionalHeaders,
+    },
     body: JSON.stringify(body),
   });
 }
 
-export function ok<T>(data: T): HttpResponse {
-  return jsonBody(HTTP.OK, data);
+export function ok<T>(data: T, headers?: Record<string, string>): HttpResponse {
+  return jsonBody(HTTP.OK, data, headers);
 }
 
-export function created<T>(data: T): HttpResponse {
-  return jsonBody(HTTP.CREATED, data);
+export function created<T>(data: T, headers?: Record<string, string>): HttpResponse {
+  return jsonBody(HTTP.CREATED, data, headers);
 }
 
 export function noContent(): HttpResponse {
-  return new HttpResponse({ status: HTTP.NO_CONTENT });
+  return new HttpResponse({
+    status: HTTP.NO_CONTENT,
+    headers: SECURITY_HEADERS,
+  });
 }
 
 export function notFound(message = 'Resource not found'): HttpResponse {
@@ -57,9 +73,26 @@ export function validationError(err: ZodError): HttpResponse {
   return jsonBody(HTTP.BAD_REQUEST, payload);
 }
 
+export function serviceUnavailable(message = 'Service Unavailable', details?: unknown): HttpResponse {
+  const payload = {
+    status: 'unhealthy',
+    timestamp: new Date().toISOString(),
+    error: message,
+    details,
+  };
+  return jsonBody(HTTP.SERVICE_UNAVAILABLE, payload);
+}
+
 export function internalError(err: unknown): HttpResponse {
-  // Log full error server-side; return minimal info to client
-  console.error('[InternalError]', err);
+  // Structured internal logging without exposing details to client
+  const timestamp = new Date().toISOString();
+  console.error(JSON.stringify({
+    level: 'ERROR',
+    timestamp,
+    message: err instanceof Error ? err.message : String(err),
+    stack: err instanceof Error ? err.stack : undefined,
+  }));
+
   const payload: ApiErrorPayload = {
     error: {
       code: 'INTERNAL_ERROR',
@@ -69,7 +102,7 @@ export function internalError(err: unknown): HttpResponse {
   return jsonBody(HTTP.INTERNAL_ERROR, payload);
 }
 
-/** Parses raw request body (string or Buffer) into a plain object */
+/** Parses raw request body safely */
 export async function parseBody(request: { text(): Promise<string> }): Promise<unknown> {
   const text = await request.text();
   if (!text || text.trim() === '') return {};

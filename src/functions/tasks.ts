@@ -16,6 +16,7 @@ import {
   notFound,
   validationError,
   internalError,
+  serviceUnavailable,
   parseBody,
 } from '../middleware/response';
 
@@ -26,6 +27,32 @@ async function getService(): Promise<TaskService> {
   const container = await getContainer();
   const repo = new TaskRepository(container);
   return new TaskService(repo);
+}
+
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// GET /api/health
+// ---------------------------------------------------------------------------
+async function healthCheck(_req: HttpRequest, ctx: InvocationContext): Promise<HttpResponseInit> {
+  ctx.log("healthCheck called");
+  try {
+    const container = await getContainer();
+    const { resource } = await container.read();
+    return ok({
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      service: "task-management-api",
+      database: {
+        status: "connected",
+        container: resource?.id,
+      },
+    });
+  } catch (err) {
+    ctx.error("Health check failed", err);
+    return serviceUnavailable("Database connection failed", (err as Error).message);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -178,4 +205,12 @@ app.http('deleteTask', {
   authLevel: 'anonymous',
   route: 'tasks/{id}',
   handler: deleteTask,
+});
+
+
+app.http("healthCheck", {
+  methods: ["GET"],
+  authLevel: "anonymous",
+  route: "health",
+  handler: healthCheck,
 });
